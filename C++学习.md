@@ -1,6 +1,6 @@
-# C++学习
+### C++学习
 
-## 类&对象
+#### 类&对象
 
 类用以指定对象形式，包含数据表示法和用于处理数据的方法。
 
@@ -43,7 +43,7 @@ Box box2;
 
 两个对象都有各自的成员变量，通关'.'来进行访问（似有与受保护成员除外）。
 
-## 类成员函数
+#### 类成员函数
 
 类成员函数是指那些把定义与原型写在类定义内部函数的函数。为类的一个成员，可以操作类的任意对象，也可以对象中所有成员。
 
@@ -345,3 +345,229 @@ int *func(int);
 ```c++
 #define EMPTYMICRO do{}while(0)
 ```
+
+#### 引用
+
+省略引用与指针的区别。[CPlusPlusThings/basic_content/pointer_refer at master · Light-City/CPlusPlusThings (github.com)](https://github.com/Light-City/CPlusPlusThings/tree/master/basic_content/pointer_refer)
+
+C++11后引用分作左值引用以及右值引用，关于左值以及右值的判断，一般有：
+
+> 可以进行取址的，有名字的，非临时---左值
+>
+> 不可以取址的，没有名字的，临时----右值
+
+对于左值引用与右值引用，以下是个人理解：
+
+左值引用即是可以将左值变量赋予给相应的引用变量，一般只有对于存储在内存中的变量其才可以采用引用。因而对于临时不可取址的右值，例如：int &a=10是错误的，因为10本身不储存在内存中，无法把相应的地址值传递给a。在C++11前，若是想为右值进行引用，必须要加上const关键字，例如const int &a=10，这样做等价于：
+
+```c++
+const int temp=10;
+const int &a=temp;
+```
+
+但这样做有局限，在于无法更改引用指向内存的内容，只能进行读取访问。
+
+而解决此局限的便是右值引用：
+
+右值引用具体格式：
+
+```c++
+//type-id &&cast-expression
+int &&a;
+```
+
+四种引用类型以及引用值类型的对应关系如下
+
+|                | 非常量左值 | 常量左值 | 非常量右值 | 常量右值 |
+| :------------: | :--------: | :------: | :--------: | :------: |
+| 非常量左值引用 |     √      |    ×     |     ×      |    ×     |
+|  常量左值引用  |     √      |    √     |     √      |    √     |
+| 非常量右值引用 |     ×      |    ×     |     √      |    ×     |
+|  常量右值引用  |     ×      |    ×     |     √      |    √     |
+
+非常量右值引用用以移动语义Move Sementics以及完美转发Perfect Forwarding
+
+常量左值类型用以拷贝语义
+
+//Perfect Forwarding与Move Sementics太抽象了，后续再看
+
+引用折叠：即引用的引用调用方式
+
+* x& &、x& &&、x&& &---->x&
+* x&& &&----->x&&
+
+引用的一个应用：const type & paraname作为入参
+
+使得参数作为只读形参的同时，避免参数拷贝并具有引用的值传递方式。
+
+结构体数据对齐：（以下还是个人理解）
+
+结构体对齐分为两种：成员头地址对齐，结构体结构对齐
+
+对于头地址对齐：
+
+一般有一个基准对齐字节大小，可以用：
+
+```c++
+#pragma pack(N)
+//N代表基准对齐字节大小
+
+struct test{
+    char a[18];
+    double b;    
+    char c;
+    int d;    
+    short e;
+}
+```
+
+结构体中变量按顺序在内存中排放，以上述test为例（基准字节为4为例），其最初从0存放char a[18]，对于数组要比较你数组类型大小与基准字节大小，若大于则按基准字节为基准，否则按类型大小字节为基准，所谓头地址对齐即是要求头地址需要是基准的整数倍，最初的0是任意数字的倍数，因而不用采取对齐操作，直接排放即可。以此类推，double型为8字节>4字节，因而存放double b的位置需要在临近18并是4的倍数，也就是20处，因而目前为止char a[18] (18)+(2)+double b(8)。以此类推得：
+
+| char a[18] (18)+2 |
+| :---------------: |
+|    double b(8)    |
+|   char c(1)+(3)   |
+|     int d(4)      |
+|    short e(2)     |
+
+至此头地址对齐完毕。
+
+后续还要进行结构体对齐。
+
+具体是要找结构体成员类型中所占字节数最大字节数与基准字节数比较，取二者的较小者。上述为8>4，取4。上述头对齐已经占用内存18+2+8+4+4+2=38，不为4的倍数，因而还需要补齐2字节才可，所以最终该结构体内存分布：
+
+| char a[18] (18)+2 |
+| :---------------: |
+|    double b(8)    |
+|   char c(1)+(3)   |
+|     int d(4)      |
+|    short e(2)     |
+|       （2）       |
+
+计算类占用内存大小：
+
+1. 空类大小1字节
+2. （以下仍是个人理解）类内有三类成员是不占用类的内存的：类的一般函数（静态与非静态函数），静态变量，虚函数本身。占用内存的是类内的一般变量以及虚函数表对应的虚函数指针，而类的内存大小也是类似于结构体那种有效内存的有序叠加，不同的是类内存对齐不包含了结构体本身内存对齐，而是变量首地址对齐与类内存对齐，其次变量首地址对齐的基准倍数始终同步于变量类型本身占用的内存大小，而类内存对齐始终以类内占用内存最大的类型为基准倍数。
+3. 对于继承类的。普通的继承，派生类继承的成员与函数在计算内存是需要考虑。而对于虚函数的继承，其无论单继承或是多继承，其都是只继承基类的虚函数指针。
+4. 虚继承。继承基类的虚函数表指针
+
+几个概念：
+
+多继承：一个类有两个及以上的父类的继承关系
+
+多继承的一种特殊情况：菱形继承。例如，有初始类Person，第二代继承类有Student与Teacher，此时第三代Assistant同时继承Student与Teacher。造成的问题：以Public继承方式会出现两份Person类的成员，出现二义性，实际使用需要指定类域。
+
+如何解决？虚继承
+
+````c++
+class person{
+   //... 
+}
+//原来
+class teacher:public person{
+    //...
+}
+class student:public person{
+    
+}
+//菱形继承
+class assistant:public teacher,public student{
+    //会有两份person成员
+}
+//改：
+//原来
+class teacher:virtual public person{
+    //...
+}
+class student:virtual public person{
+    
+}
+//继承
+class assistant:public teacher,public student{
+    //语义重复消失
+}
+````
+
+#### static
+
+静态变量：
+
+函数的静态变量：变量寿命=程序声明周期，用以保存先前函数运行状态。
+
+类中的静态变量：不允许在类内进行初始化，通常类内声明static变量，类外初始化。同一类公用一个static变量（只有一个）
+
+```c++
+//A.h
+class A{
+	public:
+		A(){
+			//do nothing
+		};
+	static int temp;
+    static void printMsg() {
+        cout<<"Welcome to Apple!"; 
+    }
+};
+//A.c
+int A::temp = 1;			//static变量初始化
+```
+
+静态成员：
+
+静态类对象与静态变量一样，静态成员生命周期持续到整个程序结束。
+
+类中静态函数，以上述class A为例，调用类A中的printMsg()函数有两种调用方式：
+
+```c++
+A::printMsg();			//方法一
+A a;
+a.printMsg();			//方法二
+```
+
+static类内静态函数只允许使用类内其他的静态数据成员或静态成员函数，无法访问非静态数据。
+
+static变量作为该文件的全局变量有两类特点：
+
+1.隐藏性。一般声明在一个文件的全局变量在整个工程具有可见性，可以通过extern来进行跨文件的访问，但若是加上static便会对其他源文件进行隐藏。
+
+2.初始化为0。static变量在初始化时内存全部被初始化为0x00。
+
+#### struct
+
+C中的struct：
+
+1.单纯时数据的复合类型，不能包含函数
+
+2.不能使用C++的访问修饰符
+
+3.C中结构体变量想使用，定义时必须+struct
+
+4.无法继承
+
+5.结构体名与函数名相同时可以正常调用
+
+C++的struct：
+
+1.可以定义函数
+
+2.可以使用public、protected、private等修饰符
+
+3.C++struct使用可以直接使用，不带struct
+
+4.可以进行继承
+
+5.结构体名称与函数名相同，定义结构体变量需要+struct
+
+struct与class的区别：
+
+1.默认变量或函数的属性不同。不指定关键字，struct结构里变量与函数防控属性时public，class是private
+
+2.默认继承的属性不同。不指定关键字，struct结构继承class或是struct属性默认是public，class是private。
+
+关于class与struct的赋值：2.4
+
+[(28条消息) C++中Struct与Class的区别与比较_YoungYangD的博客-CSDN博客_c++ class](https://blog.csdn.net/weixin_39640298/article/details/84349171?spm=1001.2101.3001.6650.4&utm_medium=distribute.pc_relevant.none-task-blog-2~default~ESLANDING~default-4-84349171-blog-125040436.pc_relevant_multi_platform_whitelistv4eslandingctr&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2~default~ESLANDING~default-4-84349171-blog-125040436.pc_relevant_multi_platform_whitelistv4eslandingctr&utm_relevant_index=9)
+
+类内的this指针是className* const this，即指针值是常值。
+
+#### Union
