@@ -412,5 +412,441 @@ y := bar
 x := foo
 ```
 
+如何用:?来把变量定义为空格？
+
+```makefile
+#way1
+empty:=
+space:=$(empty) #
+#empty变量什么也不包含，space变量哪一行中#前有多少空格space就被定义了几个空格
+#way2
+empty:=
+space:=$(empty) $(empty)
+#empty含义如上，其中第二行两个$(empty)有多少空格，space就被定义了几个空格
+```
+
+另外的赋值符号?=(条件赋值)
+
+```makefile
+FOO ?=bar
+#等价于
+ifeq ($(origin FOO),undefined)
+	FOO = bar
+endif
+```
+
+含义：若FOO未被定义过那么FOO的值为bar，否则保持不变
+
+变量值替换：
+
+格式：
+
+```makefile
+$(var:a=b)
+${var:a=b}
+```
+
+含义：将var字符串中以a结尾的字符替换为b
+
+这里结尾是指找到a字符后，其后面必须跟空格或者是结束符才可以进行替换。
+
+例子：
+
+```makefile
+foo:=a.o b.o c.o
+bar:=$(foo:.o=.c)
+#或者
+foo:=a.o b.o c.o
+bar:=$(foo:%.o=%.c)
+#第二种方法用%说明foo里的pattern都是以.o结尾的同样的作用
+```
+
+将变量的值当作变量
+
+变量追加赋值：+=
+
+```makefile
+var := value1 value2
+var := $(var) value3
+#等效于
+var := value1 value2
+var += value3
+
+var = value1 value2
+var = $(var) value3
+#等效于
+var = value1 value2
+var += value3
+```
+
++=赋值情况：若之前变量未定义或者是前面变量定义为’=‘，那么+=赋值与=类似（但所涉及的递归调用问题会被make自动解决，不用担心）；若上次变量定义为’:=‘，那么+=与:=类似。
+
+#### override指示符
+
+变量是由make命令行参数设置，而在makefile中对此变量的赋值被忽略。此类变量赋值：
+
+```makefile
+override <variable>; = <value>
+
+override <variable>; := <value>
+
+override <variable>; += <value>
+```
+
+对于多行变量定义，可以在define前加上override指示符
+
+#### 多行变量
+
+与命令包相同的命令
+
+文章中解释多行变量定义中不以tab键开头，make不会将其认为是命令，但命令包中同样也没以tab键开头啊
+
+#### 环境变量
+
+make开始运行时系统环境变量可以载入Makefile文件中
+
+若是Makefile中已定义此变量或是make命令行带入，系统环境变量值被覆盖；make命令行中加上’-e‘，系统环境变量覆盖Makefile中定义的变量。
+
+#### 如何使用Makefile中的局部变量？
+
+语法：
+
+```makefile
+<target...>:<variable-assignment>
+<target...>:override <variable-assignment>
+```
+
+其中<target...>指明了变量作用的目标范围，变量值在目标所引发的一系列规则有效，且变量若是和全局变量名称冲突，这里定义的局部变量优先级更高；其次override是针对make命令行代入的变量或者系统环境变量。
+
+定义符合模式的变量作用范围
+
+语法：
+
+```makefile
+<pattern ...> : <variable-assignment>
+<pattern ...> : override <variable-assignment>
+#原文<pattern ...>后加上了分号
+```
+
+override作用同上
+
+```makefile
+%.o : CFLAGS = -O
+```
+
+上述语句作用是将CFLAGS变量作用到所有以.o为结尾的目标上
+
+### 条件判断
+
+条件判断：比较变量值或者是比较变量与常量的值
+
+示例，在书中第37页
+
+```makefile
+<conditional-directive>
+<text-if-true>
+else
+<text-if-false>
+endif
+```
+
+条件表达式的书写有以下形式：
+
+```makefile
+#其一
+ifeq(<arg1>,<arg2>)
+ifeq '<arg1>' '<arg2>'
+...
+#省略号表示第二种方式对于<arg1>与<arg2>其引号可以为单引号也可以为双引号
+#其二
+ifneq (<arg1>,<arg2>)
+ifneq '<arg1>' '<arg2>'
+...
+#省略号表示第二种方式对于<arg1>与<arg2>其引号可以为单引号也可以为双引号
+#其三
+ifdef <variable-name>
+#通过判断变量是否为空来判断表达式是否为真
+#其四
+ifndef <variable-name>
+#与其三含义相反
+```
+
+makefile的条件表达式中，<conditional-directive>以及else与endif都是允许空格与#注释符，但不允许tab打头、
+
+其次判断条件中不要以自动化变量进行判断（make在读取makefile时就把条件表达式计算完毕并根据条件表达式选择了相应的语句，而自：W'q动化变量是在makefile运行时才推导出来的）
+
+make不允许将条件语句分成两部分放到不同文件中
+
+### 函数调用
+
+函数调用用$来标识，格式：
+
+```makefile
+$(<function> <argument>)
+#或者
+${<function> <arguments>}
+```
+
+函数名与参数间以空格相分隔，参数内部以’,‘相分隔
+
+函数1：subst
+
+```makefile
+$(subst <from>,<to>,<text>)
+```
+
+作用将text字符串中的from字段替换为to字段
+
+```makefile
+$(subst ee,EE,feet on the street)
+#输出
+fEEt on the strEEt
+```
+
+函数2：patsubst
+
+```makefile
+$(pathsubst <pattern>,<replacement>,<text>)
+```
+
+<text>以单词进行分割（用空格、TAB、回车、换行为界限），检查每一个单词是否符合<pattern>，若符合对其进行替换，替换内容为<replacement>
+
+函数3：strip
+
+```makefile
+$(strip <string>)
+```
+
+去除<string>里开头与结尾的空字符
+
+函数4：findstring
+
+```makefile
+$(findstring <find>,<in>)
+```
+
+查找<in>中的<find>字符串，找到返回<find>,否则返回空字符串
+
+函数5：filter
+
+```makefile
+$(filter <pattern...>,<text>)
+```
+
+返回<text>中符合<pattern>的字符串（可以包含多个pattern）
+
+函数6：filter-out
+
+```makefile
+$(filter-out <pattern...>,<text>)
+```
+
+反过滤函数，返回不符合pattern的字符串（可以有多个pattern）
+
+函数7：sort
+
+```makefile
+$(sort <list>)
+```
+
+对<list>里的单词以首字母为基准进行升序排列，最后返回排序后的字符串（sort会自动去除list中重复的单词）
+
+函数8：word
+
+```makefile
+$(word <n>,<text>)
+```
+
+取<text>中第n个单词并返回
+
+* n从1开始计数
+* n大于text中单词数量时返回空字符串
+
+函数9：wordlist
+
+```makefile
+$(wordlist <ss>,<e>,<text>)
+```
+
+函数返回text中从第ss个单词到第e个单词的字符串(正常情况)
+
+若ss>text单词数，返回空字符串
+
+若e>text单词数，返回从<ss>开始到<text>结束的字符串
+
+若1<=ss<e<=text单词数，函数正常返回
+
+ss>=e呢？
+
+函数10：words
+
+```makefile
+$(words <text>)
+```
+
+返回单词个数
+
+函数11：firstword
+
+```makefile
+$(firstword <text>)
+```
+
+返回<text>中第一个单词
 
 
+
+***上述函数都是用来操作字符串的，下面是操作文件名***
+
+函数12:dir
+
+```makefile
+$(dir <names...>)
+```
+
+取出文件名序列中第一个’/‘前的部分，没有’/‘的返回’./‘
+
+问：可以返回文件绝对路径么？
+
+函数13：notdir
+
+```makefile
+$(notdir <names...>)
+```
+
+从文件名序列中取出非目录部分（应该单单指文件名）
+
+函数14：suffix
+
+```makefile
+$(suffix <names...>)
+```
+
+返回文件名序列的文件名后缀，没有后缀返回空字符串
+
+函数15：basename
+
+```makefile
+ $(basename <names...>)
+```
+
+取文件名序列的文件名前缀部分。
+
+```makefile
+$(basename src/foo.c src-1.0/bar.c hacks) 
+#返回值是 src/foo src-1.0/bar hacks
+```
+
+函数16：addsuffix
+
+```makefile
+$(addsuffix <suffix>,<names...>)
+```
+
+给文件名序列的每个文件名统一添加后缀
+
+函数17：addprefix
+
+```makefile
+$(addprefix <prefix>,<names...>)
+```
+
+给文件名序列的每个文件名添加前缀
+
+函数18：join
+
+```makefile
+$(join <list1>,<list2>)
+```
+
+list2的单词按顺序依次拼接到list1的单词上，最后返回<list1>
+
+若：$(words,<list1>)>$(words,<list2>)，那么<list1>多出的部分保持不变;$(words,<list1><$(words,<list2>)，那么<list2>多出的部分按顺序粘贴到<list1>后
+
+***以下为其余函数：***
+
+函数19：foreach
+
+```makefile
+$(foreach <var>,<list>,<text>)
+```
+
+上述执行一个循环（直至<list>的单词被取完），以如下例子进行过程介绍：
+
+```makefile
+names := a b c d
+files := $(foreach n,$(names),$(n).o)
+```
+
+$(names)=a b c d
+
+foreach函数以单词为单位，每次从$(names)取一个单词作为依次循环，foreach将取得单词放入临时变量n中，临时变量再执行$(n).o的指令完成一个循环，并返回指令处理的结果（作为一个单词）。
+
+因而最终改行命令一共进行四次循环，返回了四个单词，单词间以空格相隔，最终结果：a.o b.o c.o d.o
+
+函数20：if函数
+
+```makefile
+$(if <condition>,<then-part>)
+$(if <condition>,<then-part>,<else-part>)
+```
+
+注意：函数返回值为<then-part>或者是<else-part>计算结果，若是任一方需要运行但没有定义，那么返回空字符串
+
+函数21：call函数
+
+```makefile
+$(call <expression>,<parm1>,<param2>,...,<paramn>)
+```
+
+以下是我对call函数的理解：<expression>可以被定义为一系列参数的组合表达式（用$(1)、$(2)等来表示参数顺序）。然后调用call函数后，表达式会将写$(1)、$(2)等的地方用实际参数表示，最后返回替换后的整个字符串。
+
+此外call函数的参数中，从第二个参数开始若是有多余的空格，其会保留，因而保险而言，需要将多余空格去除。
+
+函数22：origin函数
+
+```makefile
+$(origin <variable>)
+```
+
+作用：告知变量的来源，不推荐在<variable>使用$。器返回值如下：
+
+* undefined：变量从来没有进行定义
+* default：变量是默认定义，如CC
+* environment：环境变量，-e参数没有被打开
+* file：变量被定义在Makefile中
+* command line：变量被命令行定义
+* override：被override指示符重新定义
+* automatic：自动化变量
+
+函数23：shell
+
+```makefile
+$(shell <instruction>)
+```
+
+入参是shell指令，返回是shell指令的输出
+
+#### 控制make的函数
+
+error函数
+
+```makefile
+$(error <text ...>)
+```
+
+作用：产生致命错误，终止make运行，并提示<text...>消息
+
+只有函数展开（被调用时才有作用）
+
+包含“error”函数引用的命令被执行，定义中引用此函数的递归变量被展开。
+
+warning函数
+
+```makefile
+$(warning <text...>)
+```
+
+与error函数类似，但自身不会产生致命错误使得make退出，只是提示相关信息，make继续
+
+### make的运行
