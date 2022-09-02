@@ -850,3 +850,57 @@ $(warning <text...>)
 与error函数类似，但自身不会产生致命错误使得make退出，只是提示相关信息，make继续
 
 ### make的运行
+
+make退出码：
+
+* 0：成功执行
+* 1：出现错误
+* *2：make时指定-q，并且make使得一些目标不需要更新*
+
+在GNU中软件的发布，其对应的makefile都包含编译、安装、打包等功能。
+
+* all：此伪目标包含所有目标，make all即编译所有目标
+* clean：删除所有由make产生的文件
+* install：安装已经编译好的程序（把可执行文件拷贝到指定目标）
+* print：列出改编过的源文件
+* tar：源程序打包备份为tar文件
+* dist：创建压缩文件，一般是将tar文件压缩为Z/gz文件
+* TAGS：更新所有目标，为完整重编译。
+* check/test：测试makefile流程
+
+make的参数：
+
+* -f/--file：指定要运行的makefile名字。
+* -n --just-print --dry-run --recon：makefile调试用，不更新目标。
+* -t --touch：不更新目标，只更新目标文件的时间，只是将目标更改为已编译过的状态
+* -q --question：寻找目标是否存在，只有在目标不存在时会打印出错信息，否则啥都不会输出
+* -W <file> --what-if=<file> --assume-new=<file> --new-file=<file>：一般指定的是源文件或者是依赖文件，make会自动推导与其相关的命令（多配合-n使用）
+* -b -m：忽略与其他版本make的兼容性
+* -B --always-make：重编译
+* -C <dir> --directory=<dir>：指定读取makefile的目录。多个-C指定目录：后面的目录会以前面的目录为基准作为相对路径。
+* -debug[=<options>]：输出make的调试信息。option指定了输出的级别（不指定就默认输出最简单的调试信息）。
+  * a：all，输出所有的调试信息
+  * b：basic，输出简单的调试信息：输出不需要重编译的目标
+  * v：verbose，级别>b但<a，输出内容包含：哪个makefile被解析，不需要重编译的依赖文件/目标。
+  * i：implicit，输出所有的隐含规则
+  * j：jobs，输出执行规则命令详细信息：命令PID，返回码
+  * m：makefile，输出make读取makefile，更新makefile以及执行makefile的信息
+* -d：等价于-debug=a
+* -e --enviroment-overrides：指明环境变量的值覆盖makefile中定义变量的值
+* -h/--help：显示帮助信息
+* -i --ignore-errors：执行时忽略所有错误
+* -I <dir>/--include-dir=<dir>：指定一个被包含makefile的搜索目标，可以指定多个目录（多个-I）
+* -j [<jobsnum>]，--jobs[=<jobsnum>]：同时执行命令的个数，不指定make运行时能执行多少就执行多少（？不该是一个么？），若指定了多个-j，那么只有最后一个-j有效。
+* -k/--keep-going：出错也不停执行，若是一个目标生成失败，那么依赖此目标的目标生成也不会再被执行了。
+* -l <load> --load-average[=<load>] -max-load[=<load>]：指定make运行命令的负载
+* -o <file> --old-file=<file> --asume-old=<file>：不重新生成指定的<file>，即使目标依赖新于目标。
+* -p，--print-data-base：输出makefile中所有的数据，包括所有的规则与变量。衍生：make -qp只输出信息但不执行makefile。查看执行makefile执行前的预设变量与规则：make -p -f /dev/null：输出makefile文件的文件名与行号。
+* -q --question：不运行不输出。仅仅检查指定目标是否需要更新。
+* -r --no-builtin-base：禁止make使用任何隐含规则
+* -R --no-builtin-variables：禁止使用作用与变量上的隐含规则
+* -s --silent --quiet：命令运行四不输出命令
+* -S --no-keep-going --stop：取下-k作用。有些时候make选项从MAKEFLAGS继承，需要再命令行中指定-S来使得-k失效。
+* -t --touch：只把目标的修改日期变为最新。
+* -w --print-directory：输出运行makefile之前与之后的信息。
+* --no-print-directory：禁止-w选项
+* --warn--undefined-variables：发现未定义变量，发出警告信息
